@@ -9,6 +9,9 @@
     # 0 means we rely on Apache auth
     use_authentication: 0
 
+    # hostname for the machine 
+    servername: nagios-host
+
     # Comma-separated list of usernames
     admin_users: nagiosadmin
 
@@ -18,6 +21,10 @@
 
     # Change to the proper SNMP readonly community string
     snmp_readonly: public
+
+    # Add the proper certificate paths. These are the snakeoil certs
+    ssl_certificate: /etc/pki/tls/certs/localhost.crt
+    ssl_key: /etc/pki/tls/private/localhost.key
   tasks:
   # EPEL is a community repo with expanded package lists.
   - name: Install EPEL
@@ -96,11 +103,20 @@
     notify:
       - Restart Nagios
   # Now set up the web server to point to Nagios
+  - name: Configure Apache Nagios Config
+    template:
+      dest: '/etc/httpd/conf.d/nagios.conf'
+      src: 'templates/apache.nagios.conf.j2'
+      owner: root
+      group: root
+      mode: 0644
+    notify:
+      - Restart Apache
   - name: Enforce SSL for Nagios
-    lineinfile:
-     dest: /etc/httpd/conf.d/nagios.conf
+    replace:
+     path: /etc/httpd/conf.d/nagios.conf
      regexp: '^#  SSLRequireSSL'
-     line: '  SSLRequireSSL'
+     replace: '  SSLRequireSSL'
     notify:
       - Restart Apache
   - name: Start Apache
