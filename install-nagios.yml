@@ -1,0 +1,55 @@
+---
+- name: Install Nagios on CentOS 7
+  hosts: all
+  become: true
+  tasks:
+  # EPEL is a community repo with expanded package lists.
+  - name: Install EPEL
+    yum:
+      name: epel-release
+      state: present
+    when: ansible_facts['os_family'] == 'RedHat'
+  # Nagios package includes the nagios and nagios-common, as well
+  # as the  Apache web server config, which lives in
+  # /etc/httpd/conf.d/nagios.conf
+  - name: Install Nagios Common
+    yum:
+      name: nagios
+      state: present
+    when: ansible_facts['os_family'] == 'RedHat'
+  # Install all of the default plugins and some 
+  # of the supporting software like NRPE and NSCA
+  - name: Install Nagios Supporting Software
+    yum:
+      name: [
+        'nagios-plugins-all', 
+        'perl-Nagios-Plugin',
+        'pnp4nagios',
+        'nrpe',
+        'nsca'
+        ]
+      state: present
+  - name: Nagios config
+    copy:
+      src: 'files/nagios-config/'
+      dest: /etc/nagios/
+    register: nagios_config
+  # Now set up the web server to point to Nagios
+  - name: Start Apache
+    ansible.builtin.systemd:
+      name: httpd
+      state: started
+      enabled: yes
+  - name: Enable nagios
+    ansible.builtin.systemd:
+      name: nagios
+      enabled: yes
+      state: started
+  - name: Start Nagios
+    command: systemctl restart nagios
+    when: nagios_config.changed
+  - name: Put motd in place
+    copy:
+      src: 'files/motd'
+      dest: /etc/motd
+      

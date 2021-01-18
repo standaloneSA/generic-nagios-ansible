@@ -1,0 +1,15 @@
+Welcome to the Nagios server. 
+
+Nagios configuration can be found in /etc/nagios/objects/ 
+
+New monitored hosts can be created with the '/etc/nagios/objects/new-host.sh' script. 
+
+To restart the Nagios service after adding, removing, or changing the config, do: 
+
+$ sudo systemctl restart nagios 
+
+To restart Apache, do: 
+
+$ sudo systemctl restart httpd
+
+
