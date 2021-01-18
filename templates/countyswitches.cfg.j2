@@ -1,0 +1,19 @@
+define host {
+  use generic-switch
+  name countyswitch
+  alias countyswitch
+  hostgroups countyswitches
+  register 0
+}
+
+define hostgroup {
+  hostgroup_name  countyswitches
+  alias County Switches
+}
+
+define service {
+  use generic-service
+  service_description Check Switch Uptime
+  hostgroups  countyswitches
+  check_command check_snmp!-C {{ snmp_readonly }} -o sysUpTime.0
+}

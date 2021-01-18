@@ -2,6 +2,22 @@
 - name: Install Nagios on CentOS 7
   hosts: all
   become: true
+  vars:
+    # Performance trending, if we want to do that later
+    process_performance_data: 0
+    
+    # 0 means we rely on Apache auth
+    use_authentication: 0
+
+    # Comma-separated list of usernames
+    admin_users: nagiosadmin
+
+    # for the $ADMINEMAIL$ and $ADMINPAGER$ macros
+    admin_email: nagios@mydomain.com
+    admin_pager: pager@mydomain.com
+
+    # Change to the proper SNMP readonly community string
+    snmp_readonly: public
   tasks:
   # EPEL is a community repo with expanded package lists.
   - name: Install EPEL
@@ -9,6 +25,7 @@
       name: epel-release
       state: present
     when: ansible_facts['os_family'] == 'RedHat'
+
   # Nagios package includes the nagios and nagios-common, as well
   # as the  Apache web server config, which lives in
   # /etc/httpd/conf.d/nagios.conf
@@ -17,6 +34,7 @@
       name: nagios
       state: present
     when: ansible_facts['os_family'] == 'RedHat'
+
   # Install all of the default plugins and some 
   # of the supporting software like NRPE and NSCA
   - name: Install Nagios Supporting Software
@@ -29,11 +47,47 @@
         'nsca'
         ]
       state: present
-  - name: Nagios config
-    copy:
-      src: 'files/nagios-config/'
-      dest: /etc/nagios/
-    register: nagios_config
+
+  # Configure Nagios
+  - name: Configure Nagios
+    lineinfile:
+      dest: /etc/nagios/nagios.cfg
+      regexp: "{{ item.regexp }}"
+      line: "{{ item.line }}"
+    with_items:
+      - { regexp: '^admin_email=', line: 'admin_email={{ admin_email }}' }
+      - { regexp: '^admin_pager=', line: 'admin_pager={{ admin_pager }}' }
+      - { regexp: '^#cfg_dir=/etc/nagios/switches', line: 'cfg_dir=/etc/nagios/switches' }
+  - name: Make switch config dir
+    file:
+      path: '/etc/nagios/switches'
+      state: directory
+      owner: root
+      group: nagios
+      mode: 0755
+  - name: Create switch template
+    template:
+      dest: /etc/nagios/switches/countyswitches.cfg
+      src: templates/countyswitches.cfg.j2
+      owner: root
+      group: nagios
+      mode: 0644
+  - name: Create switch configs
+    template:
+      dest: '/etc/nagios/switches/{{ item.hostname }}.cfg'
+      owner: root
+      group: nagios
+      mode: 0644
+      src: templates/switch-config.j2
+    with_items:
+      - { hostname: 'switch1', address: '10.1.1.1' }
+      - { hostname: 'switch2', address: '10.1.1.2' }
+
+  - name: Set up CGI
+    ansible.builtin.template:
+      dest: /etc/nagios/cgi.cfg
+      src: templates/cgi.cfg.j2
+    register: nagios_cgi_config
   # Now set up the web server to point to Nagios
   - name: Start Apache
     ansible.builtin.systemd:
@@ -47,7 +101,7 @@
       state: started
   - name: Start Nagios
     command: systemctl restart nagios
-    when: nagios_config.changed
+    when: nagios_cgi_config.changed
   - name: Put motd in place
     copy:
       src: 'files/motd'

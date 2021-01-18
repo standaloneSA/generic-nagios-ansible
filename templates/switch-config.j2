@@ -1,0 +1,7 @@
+define host {
+  use countyswitch
+  host_name {{ item.hostname }}
+  alias {{ item.hostname }}
+  address {{ item.address }}
+  hostgroups countyswitches
+} 
