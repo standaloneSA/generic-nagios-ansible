@@ -44,7 +44,8 @@
         'perl-Nagios-Plugin',
         'pnp4nagios',
         'nrpe',
-        'nsca'
+        'nsca',
+        'mod_ssl'
         ]
       state: present
 
@@ -58,6 +59,8 @@
       - { regexp: '^admin_email=', line: 'admin_email={{ admin_email }}' }
       - { regexp: '^admin_pager=', line: 'admin_pager={{ admin_pager }}' }
       - { regexp: '^#cfg_dir=/etc/nagios/switches', line: 'cfg_dir=/etc/nagios/switches' }
+    notify:
+      - Restart Nagios
   - name: Make switch config dir
     file:
       path: '/etc/nagios/switches'
@@ -72,6 +75,8 @@
       owner: root
       group: nagios
       mode: 0644
+    notify:
+      - Restart Nagios
   - name: Create switch configs
     template:
       dest: '/etc/nagios/switches/{{ item.hostname }}.cfg'
@@ -82,13 +87,22 @@
     with_items:
       - { hostname: 'switch1', address: '10.1.1.1' }
       - { hostname: 'switch2', address: '10.1.1.2' }
-
+    notify:
+      - Restart Nagios
   - name: Set up CGI
     ansible.builtin.template:
       dest: /etc/nagios/cgi.cfg
       src: templates/cgi.cfg.j2
-    register: nagios_cgi_config
+    notify:
+      - Restart Nagios
   # Now set up the web server to point to Nagios
+  - name: Enforce SSL for Nagios
+    lineinfile:
+     dest: /etc/httpd/conf.d/nagios.conf
+     regexp: '^#  SSLRequireSSL'
+     line: '  SSLRequireSSL'
+    notify:
+      - Restart Apache
   - name: Start Apache
     ansible.builtin.systemd:
       name: httpd
@@ -101,9 +115,17 @@
       state: started
   - name: Start Nagios
     command: systemctl restart nagios
-    when: nagios_cgi_config.changed
   - name: Put motd in place
     copy:
       src: 'files/motd'
       dest: /etc/motd
       
+  handlers:
+    - name: Restart Apache
+      service:
+        name: httpd
+        state: restarted
+    - name: Restart Nagios
+      service:
+        name: nagios
+        state: restarted
