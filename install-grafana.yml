@@ -1,0 +1,35 @@
+---
+- name: Install Grafana on CentOS 7
+  hosts: all
+  become: true
+  tasks:
+    - name: Set up grafana repo
+      yum_repository: 
+        name: grafana
+        description: Grafana YUM Rep
+        file: grafana
+        baseurl: https://packages.grafana.com/oss/rpm
+        enabled: yes
+        gpgcheck: yes
+        gpgkey: https://packages.grafana.com/gpg.key
+        sslverify: yes
+    - name: Install Grafana and required packages
+      yum:
+        name: [
+          "epel-release",
+          "@Development tools",
+          "grafana"
+          ]
+        state: present
+    - name: Set up the PRTG plugin
+      git:
+        repo: https://github.com/neuralfraud/grafana-prtg.git
+        dest: /root/grafana-prtg
+      register: git_pull
+    - name: Copy grafana-prtg to the plugins dir
+      command: rsync -av /root/grafana-prtg/jasonlashua-prtg-datasource /var/lib/grafana/plugins
+      when: git_pull.changed
+    - name: Start Grafana
+      service:
+        name: grafana-server
+        state: started
