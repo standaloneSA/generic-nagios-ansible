@@ -1,8 +1,6 @@
 Welcome to the Nagios server. 
 
-Nagios configuration can be found in /etc/nagios/objects/ 
-
-New monitored hosts can be created with the '/etc/nagios/objects/new-host.sh' script. 
+Nagios configuration can be found in /etc/nagios/ (switches are in the /etc/nagios/switches dir) 
 
 To restart the Nagios service after adding, removing, or changing the config, do: 
 
