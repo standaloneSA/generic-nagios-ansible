@@ -92,6 +92,7 @@
       mode: 0644
       src: templates/switch-config.j2
     with_items:
+      - { hostname: 'homeswitch', address: '192.168.1.1' }
       - { hostname: 'switch1', address: '10.1.1.1' }
       - { hostname: 'switch2', address: '10.1.1.2' }
     notify:
